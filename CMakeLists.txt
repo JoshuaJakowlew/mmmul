@@ -1,0 +1,14 @@
+cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
+
+project(mmmul VERSION 0.1 LANGUAGES CUDA CXX)
+
+add_executable(${PROJECT_NAME}
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+)
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED true)
