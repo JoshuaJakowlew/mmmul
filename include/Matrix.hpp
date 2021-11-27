@@ -42,23 +42,19 @@ void inc_index(std::vector<std::size_t>& digits, std::size_t n)
     }
 }
 
-// TODO: Make me O(ids) memory instead of O(n^ids * n)
-std::vector<std::vector<std::size_t>> indicies(std::size_t ids, std::size_t n)
+auto indicies(std::size_t ids, std::size_t n)
 {
-    std::vector<std::vector<std::size_t>> permutations;
-
-    std::vector<std::size_t> digits(ids);
-    permutations.emplace_back(digits.begin(), digits.end());
-
     std::size_t bound = pow(n, ids);
 
-    for (std::size_t i = 1; i < bound; ++i)
-    {
+    auto increment = [n, digits = std::vector<std::size_t>(ids)](auto i) mutable {
+        if (0 == i)
+            return digits;
+            
         inc_index(digits, n);
-        permutations.emplace_back(digits.begin(), digits.end());
-    }
+        return digits;
+    };
 
-    return permutations;
+    return std::views::iota(0uz, bound) | std::views::transform(increment);
 }
 
 template <typename T>
@@ -93,9 +89,9 @@ public:
         std::vector<Matrix<T>> sections;
         sections.reserve(_b);
 
-        const auto free = indicies(_a, _n);
-        const auto scott = indicies(_b, _n);
-        const auto caly = indicies(_c, _n);
+        auto free = indicies(_a, _n);
+        auto scott = indicies(_b, _n);
+        auto caly = indicies(_c, _n);
         
         for (auto&& s : scott)
         {

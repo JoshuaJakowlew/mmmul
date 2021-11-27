@@ -1,6 +1,6 @@
 #include <iostream>
 #include <random>
-
+#include <ranges>
 #include <Matrix.hpp>
 
 // FIXME: Works only with numbers
@@ -26,21 +26,23 @@ int main()
     constexpr std::size_t n = 3;
 
     auto mat = iotaMat<float>(a, b, c, n);
-    //auto mat = Matrix<float>(a, b, c, n);
+    // //auto mat = Matrix<float>(a, b, c, n);
     std::cout << mat << std::endl;
 
-    auto perms = indicies(a, n);
-    //std::cout << perms << std::endl;
+    // auto perms = indicies(a, n);
+    // //std::cout << perms << std::endl;
 
-    auto x = mat[{1, 2, 2}];
-    std::cout << x << std::endl;
+    // auto x = mat[{1, 2, 2}];
+    // std::cout << x << std::endl;
 
-    auto y = mat({1}, {2}, {2});
-    std::cout << y << std::endl;
+    // auto y = mat({1}, {2}, {2});
+    // std::cout << y << std::endl;
 
     auto sections = mat.dissectScott();
     for (auto&& section : sections)
     {
         std::cout << section << std::endl;
     }
+
+    // std::cout << 
 }
