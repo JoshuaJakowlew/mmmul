@@ -38,15 +38,31 @@ public:
 
 #pragma region subscription
     template <std::convertible_to<multiindex_t> I>
-    [[nodiscard]] auto operator[](I&& ids) -> T&
+    [[nodiscard]] auto operator[](I&& indices) const -> T const &
     {
-        return _buffer[toOffset(std::forward<I>(ids))];
+        return _buffer[toOffset(std::forward<I>(indices))];
     }
 
     template <std::convertible_to<multiindex_t> I>
-    [[nodiscard]] auto operator[](multiindex_t const& ids) const -> const T&
+    [[nodiscard]] auto operator[](I&& indices) -> T&
     {
-        return _buffer[toOffset(std::forward<I>(ids))];
+        return const_cast<T&>(std::as_const(*this)[std::forward<I>(indices)]);
+    }
+
+    template <
+        std::convertible_to<multiindex_t> I1 = multiindex_t,
+        std::convertible_to<multiindex_t> I2 = multiindex_t,
+        std::convertible_to<multiindex_t> I3 = multiindex_t
+    >
+    [[nodiscard]] auto operator()(I1&& free, I2&& scott, I3&& caly) const -> T const&
+    {
+        std::size_t offset = 0;
+
+        offset += toOffset(std::forward<I1>(free), free.size() + scott.size() + caly.size(), _n);
+        offset += toOffset(std::forward<I2>(scott), scott.size() + caly.size(), _n);
+        offset += toOffset(std::forward<I3>(caly), caly.size(), _n);
+
+        return _buffer[offset];
     }
 
     template <
@@ -56,16 +72,9 @@ public:
     >
     [[nodiscard]] auto operator()(I1&& free, I2&& scott, I3&& caly) -> T&
     {
-        return _buffer[subscriptOffset(std::forward<I1>(free), std::forward<I2>(scott), std::forward<I3>(caly))];
-    }
-
-    template <
-        std::convertible_to<multiindex_t> I1 = multiindex_t,
-        std::convertible_to<multiindex_t> I2 = multiindex_t,
-        std::convertible_to<multiindex_t> I3 = multiindex_t>
-    [[nodiscard]] auto operator()(I1&& free, I2&& scott, I3&& caly) const -> T const&
-    {
-        return _buffer[subscriptOffset(std::forward<I1>(free), std::forward<I2>(scott), std::forward<I3>(caly))];
+        return const_cast<T&>(std::as_const(*this)(
+            std::forward<I1>(free), std::forward<I2>(scott), std::forward<I3>(caly)
+        ));
     }
 #pragma endregion subscription
 
@@ -94,22 +103,6 @@ private:
         {
             offset += ids[i] * pow(n, dims - i - 1);
         }
-
-        return offset;
-    }
-
-    template <
-        std::convertible_to<multiindex_t> I1 = multiindex_t,
-        std::convertible_to<multiindex_t> I2 = multiindex_t,
-        std::convertible_to<multiindex_t> I3 = multiindex_t
-    >
-    [[nodiscard]] auto subscriptOffset(I1&& free, I2&& scott, I3&& caly) const -> std::size_t
-    {
-        std::size_t offset = 0;
-
-        offset += toOffset(std::forward<I1>(free), free.size() + scott.size() + caly.size(), _n);
-        offset += toOffset(std::forward<I2>(scott), scott.size() + caly.size(), _n);
-        offset += toOffset(std::forward<I3>(caly), caly.size(), _n);
 
         return offset;
     }
