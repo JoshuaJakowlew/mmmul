@@ -2,21 +2,7 @@
 #include <random>
 #include <ranges>
 #include <Mat.hpp>
-
-// FIXME: Works only with numbers
-template <typename T>
-Mat<T> iotaMat(std::size_t a, std::size_t b, std::size_t c, std::size_t n)
-{
-    auto buffer_size = pow(n, a + b + c);
-    auto buffer = typename Mat<T>::buffer_t{new T[buffer_size]};
-
-    for (std::size_t i = 0; i < buffer_size; ++i)
-    {
-        buffer[i] = static_cast<T>(i);
-    }  
-
-    return Mat<T>{std::move(buffer), a, b, c, n};
-}
+#include <operations.hpp>
 
 int main()
 {
@@ -25,24 +11,35 @@ int main()
     constexpr std::size_t c = 1;
     constexpr std::size_t n = 3;
 
-    auto mat = iotaMat<float>(a, b, c, n);
-    // //auto mat = Mat<float>(a, b, c, n);
-    std::cout << mat << std::endl;
+    auto A = iotaMat<float>(a, b, c, n);
+    auto B = iotaMat<float>(a, b, c, n);
 
-    // auto perms = indicies(a, n);
-    // //std::cout << perms << std::endl;
+    std::cout << "Matrix A" << std::endl;
+    std::cout << A << std::endl;
 
-    // auto x = mat[{1, 2, 2}];
-    // std::cout << x << std::endl;
+    std::cout << "Matrix B" << std::endl;
+    std::cout << B << std::endl;
 
-    // auto y = mat({1}, {2}, {2});
-    // std::cout << y << std::endl;
+    auto As = A.dissectB();
+    auto Bs = B.dissectA();
+    
+    std::cout << "Sections of A" << std::endl;
+    std::cout << As << std::endl;
 
-    auto sections = mat.dissectScott();
-    for (auto&& section : sections)
+    std::cout << "Sections of B" << std::endl;
+    std::cout << Bs << std::endl;
+
+    std::vector<Mat<float>> Cs;
+    for (std::size_t i = 0; i < As.size(); ++i)
     {
-        std::cout << section << std::endl;
+        std::cout << "a" << i << " * b" << i << std::endl;
+        auto cs = zeroMuConvolutionProduct(As[i], Bs[i]);
+        std::cout << cs << std::endl;
+        Cs.emplace_back(std::move(cs));
     }
 
-    // std::cout << 
+    std::cout << "C from sections" << std::endl;
+    auto C = Mat<float>(Cs, 1);
+    std::cout << C << std::endl;
+
 }

@@ -18,7 +18,7 @@ std::ostream& operator<< (std::ostream& out, std::vector<T> const& vec)
     out << '[';
     for (std::size_t i = 0; i < vec.size() - 1; ++i)
     {
-        out << vec[i] << ", ";
+        out << vec[i] << ",";
     }
     out << vec.back() << ']';
 

@@ -48,5 +48,5 @@ namespace detail
         return state.digits;
     };
 
-    return std::views::iota(0uz, size) | std::views::transform(increment);
+    return std::views::iota(std::size_t{0}, size) | std::views::transform(increment);
 }

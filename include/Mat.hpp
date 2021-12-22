@@ -24,13 +24,114 @@ public:
     template <std::convertible_to<buffer_t> B>
     Mat(B&& buffer, std::size_t free, std::size_t scott, std::size_t caly, std::size_t n) :
         _buffer{std::forward<B>(buffer)},
-        _free{free},
-        _scott{scott},
-        _caly{caly},
+        _a{free},
+        _b{scott},
+        _c{caly},
         _n{n},
         _size{pow(n, (free + scott + caly))}
     {
     }
+
+    Mat(std::vector<Mat<T>> const & scottSections, int group)
+    {
+        if (group == 0) fromSectionsA(scottSections);
+        else if (group == 1) fromSectionsB(scottSections);
+        else fromSectionsC(scottSections);
+    }
+
+    void fromSectionsA(std::vector<Mat<T>> const & scottSections)
+    {
+        _n = scottSections[0]._n;
+        _a = static_cast<std::size_t>(
+            std::round(std::log(scottSections.size()) / std::log(_n))
+        );
+        _b = scottSections[0]._b;
+        _c = scottSections[0]._c;
+
+        _size = pow(_n, (_a + _b + _c));
+        _buffer = buffer_t{new T[_size]};
+
+        auto as = index_sequence(_a, _n);
+        auto bs = index_sequence(_b, _n);
+        auto cs = index_sequence(_c, _n);
+
+        for (auto&& a : as)
+        {
+            const auto sectionIndex = toOffset(a, _a, _n);
+
+            for (auto&& b : bs)
+            {
+                for (auto&& c : cs)
+                {
+                    auto&& elem = scottSections[sectionIndex]({}, std::move(b), std::move(c));
+                    (*this)(std::move(a), std::move(b), std::move(c)) = std::move(elem);
+                }
+            }
+        }
+    }
+
+    void fromSectionsB(std::vector<Mat<T>> const & scottSections)
+    {
+        _n = scottSections[0]._n;
+        _a = scottSections[0]._a;
+        _b = static_cast<std::size_t>(
+            std::round(std::log(scottSections.size()) / std::log(_n))
+        );
+        _c = scottSections[0]._c;
+
+        _size = pow(_n, (_a + _b + _c));
+        _buffer = buffer_t{new T[_size]};
+
+        auto as = index_sequence(_a, _n);
+        auto bs = index_sequence(_b, _n);
+        auto cs = index_sequence(_c, _n);
+
+        for (auto&& b : bs)
+        {
+            const auto sectionIndex = toOffset(b, _b, _n);
+
+            for (auto&& a : as)
+            {
+                for (auto&& c : cs)
+                {
+                    auto&& elem = scottSections[sectionIndex](std::move(a), {}, std::move(c));
+                    (*this)(std::move(a), std::move(b), std::move(c)) = std::move(elem);
+                }
+            }
+        }
+    }
+
+    void fromSectionsC(std::vector<Mat<T>> const & scottSections)
+    {
+        _n = scottSections[0]._n;
+        _a = scottSections[0]._a;
+        _b = scottSections[0]._b;
+        _c = static_cast<std::size_t>(
+            std::round(std::log(scottSections.size()) / std::log(_n))
+        );
+
+        _size = pow(_n, (_a + _b + _c));
+        _buffer = buffer_t{new T[_size]};
+
+        auto as = index_sequence(_a, _n);
+        auto bs = index_sequence(_b, _n);
+        auto cs = index_sequence(_c, _n);
+
+        for (auto&& c : cs)
+        {
+            const auto sectionIndex = toOffset(c, _c, _n);
+
+            for (auto&& a : as)
+            {
+                for (auto&& b : bs)
+                {
+                    auto&& elem = scottSections[sectionIndex](std::move(a), std::move(c), {});
+                    (*this)(std::move(a), std::move(b), std::move(c)) = std::move(elem);
+                }
+            }
+        }
+    }
+
 #pragma endregion constructor
 
     template <Printable U>
@@ -78,21 +179,25 @@ public:
     }
 #pragma endregion subscription
 
-    [[nodiscard]] auto dissectScott() const -> std::vector<Mat<T>>;
+    [[nodiscard]] auto dissectA() const -> std::vector<Mat<T>>;
+    [[nodiscard]] auto dissectB() const -> std::vector<Mat<T>>;
+    [[nodiscard]] auto dissectC() const -> std::vector<Mat<T>>;
 
-private:
+
     buffer_t _buffer;
-    std::size_t _free;
-    std::size_t _scott;
-    std::size_t _caly;
+    std::size_t _a;
+    std::size_t _b;
+    std::size_t _c;
     std::size_t _n;
     std::size_t _size;
+
+private:
 
 #pragma region offset
     template <std::convertible_to<multiindex_t> I = multiindex_t>
     std::size_t toOffset(I&& ids) const
     {
-        return toOffset(std::forward<I>(ids), _free + _scott + _caly, _n);
+        return toOffset(std::forward<I>(ids), _a + _b + _c, _n);
     }
 
     template <std::convertible_to<multiindex_t> I = multiindex_t>
@@ -112,7 +217,7 @@ private:
 template <Printable T>
 std::ostream& operator<< (std::ostream& out, Mat<T> const& mat)
 {
-    out << "Mat[free=" << mat._free << ", scott=" << mat._scott << ", caly=" << mat._caly 
+    out << "\nMat[a=" << mat._a << ", b=" << mat._b << ", c=" << mat._c 
         << "], N=" << mat._n
         << "\n[";
 
@@ -127,25 +232,79 @@ std::ostream& operator<< (std::ostream& out, Mat<T> const& mat)
 }
 
 template <typename T>
-[[nodiscard]] auto Mat<T>::dissectScott() const -> std::vector<Mat<T>>
+[[nodiscard]] auto Mat<T>::dissectA() const -> std::vector<Mat<T>>
 {
     auto sections = std::vector<Mat<T>>{};
-    sections.reserve(pow(_n, _scott));
+    sections.reserve(pow(_n, _a));
 
-    auto free = index_sequence(_free, _n);
-    auto scott = index_sequence(_scott, _n);
-    auto caly = index_sequence(_caly, _n);
+    auto as = index_sequence(_a, _n);
+    auto bs = index_sequence(_b, _n);
+    auto cs = index_sequence(_c, _n);
         
-    for (auto&& s : scott)
+    for (auto&& a : as)
     {
-        sections.emplace_back(_free, 0, _caly, _n);
+        sections.emplace_back(0, _b, _c, _n);
 
-        for (auto&& f : free)
+        for (auto&& b : bs)
         {
-            for (auto&& c : caly)
+            for (auto&& c : cs)
             {
-                auto&& elem = (*this)(std::move(f), std::move(s), std::move(c));
-                sections.back()(std::move(f), {}, std::move(c)) = std::move(elem);
+                auto&& elem = (*this)(std::move(a), std::move(b), std::move(c));
+                sections.back()({}, std::move(b), std::move(c)) = std::move(elem);
+            }
+        }
+    }
+
+    return sections;
+}
+
+template <typename T>
+[[nodiscard]] auto Mat<T>::dissectB() const -> std::vector<Mat<T>>
+{
+    auto sections = std::vector<Mat<T>>{};
+    sections.reserve(pow(_n, _b));
+
+    auto as = index_sequence(_a, _n);
+    auto bs = index_sequence(_b, _n);
+    auto cs = index_sequence(_c, _n);
+        
+    for (auto&& b : bs)
+    {
+        sections.emplace_back(_a, 0, _c, _n);
+
+        for (auto&& a : as)
+        {
+            for (auto&& c : cs)
+            {
+                auto&& elem = (*this)(std::move(a), std::move(b), std::move(c));
+                sections.back()(std::move(a), {}, std::move(c)) = std::move(elem);
+            }
+        }
+    }
+
+    return sections;
+}
+
+template <typename T>
+[[nodiscard]] auto Mat<T>::dissectC() const -> std::vector<Mat<T>>
+{
+    auto sections = std::vector<Mat<T>>{};
+    sections.reserve(pow(_n, _c));
+
+    auto as = index_sequence(_a, _n);
+    auto bs = index_sequence(_b, _n);
+    auto cs = index_sequence(_c, _n);
+        
+    for (auto&& c : cs)
+    {
+        sections.emplace_back(_a, _b, 0, _n);
+
+        for (auto&& a : as)
+        {
+            for (auto&& b : bs)
+            {
+                auto&& elem = (*this)(std::move(a), std::move(b), std::move(c));
+                sections.back()(std::move(a), std::move(b), {}) = std::move(elem);
             }
         }
     }
